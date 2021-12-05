@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from uuid import uuid4
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django_currentuser.middleware import get_current_user
 
 
 class Counter(models.Model):
@@ -36,11 +37,18 @@ class History(models.Model):
         ordering = ('-date', )
 
 
+# сигнал, вызываемый после сохранения записи в модели Counter
 @receiver(post_save, sender=Counter)
 def signal_handler(sender, instance, **kwargs):
     existed = History.objects.filter(counter=instance).exists()
+    # определяем текущего пользователя для указания поля type модели History
+    # импорт функции из внешней lib django_currentuser
+    current_user = get_current_user()
+    cur_user_is_staff = User.objects.get(username=current_user).is_staff
     if existed:
-        prev_value = History.objects.filter(counter=instance).order_by('-value').first().value
-        History.objects.create(value=instance.value, consumption=instance.value - prev_value, counter=instance)
+        prev_value = History.objects.filter(counter=instance).latest('value').value
+        h = History(value=instance.value, consumption=instance.value - prev_value, counter=instance, type=cur_user_is_staff)
+        h.save()
     else:
-        History.objects.create(value=instance.value, consumption=instance.value, counter=instance)
+        h = History(value=instance.value, consumption=instance.value, counter=instance, type=cur_user_is_staff)
+        h.save()
