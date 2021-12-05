@@ -19,6 +19,7 @@ class HistoryAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         # флаг создания / изменения записи оператором
+        # непосредственно через админку
         if request.user.is_staff:
             obj.type = True
         return super(HistoryAdmin, self).save_model(request, obj, form, change)
